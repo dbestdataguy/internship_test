@@ -1,0 +1,68 @@
+{
+  "groups": [
+    {
+      "label": "Transport and Food Delivery",
+      "items": [
+        "Uber trip 1200",
+        "uber ride lagos 1100",
+        "Bolt ride 900",
+        "BOLT TECHNOLOGIES 1050",
+        "UBER EATS ORDER 3400"
+      ],
+      "confidence": "medium",
+      "explanation": "These transactions involve ride-hailing services like Uber and Bolt, as well as a food delivery service, Uber Eats. They belong together due to their association with transportation and food delivery, but the inclusion of both types of services reduces confidence."
+    },
+    {
+      "label": "Digital Services",
+      "items": [
+        "Netflix subscription 4500",
+        "NETFLIX.COM 4500"
+      ],
+      "confidence": "high",
+      "explanation": "These transactions refer to the same service, Netflix, and represent a digital subscription."
+    },
+    {
+      "label": "Telecommunications and Shopping",
+      "items": [
+        "MTN airtime recharge 500",
+        "MTN data bundle 1200",
+        "Airtel subscription 800",
+        "Shoprite purchase 3200",
+        "Shoprite Lagos 2800"
+      ],
+      "confidence": "low",
+      "explanation": "These transactions involve various services including telecommunications and retail shopping, but their connection is not strong due to the diversity of services represented."
+    },
+    {
+      "label": "Cloud Services",
+      "items": [
+        "Amazon Web Services invoice",
+        "AWS charges July"
+      ],
+      "confidence": "high",
+      "explanation": "Both transactions refer to the same service, Amazon Web Services, indicating cloud computing or related charges."
+    },
+    {
+      "label": "Transfer Fee",
+      "items": [
+        "Paystack transfer fee"
+      ],
+      "confidence": "high",
+      "explanation": "This is a singleton group, but it clearly represents a fee associated with a transfer, likely a payment processing fee."
+    },
+    {
+      "label": "Payout",
+      "items": [
+        "Flutterwave payout 15000"
+      ],
+      "confidence": "high",
+      "explanation": "This is a singleton group, representing a payout, likely from a fintech or payment processing service."
+    }
+  ],
+  "ungrouped": [],
+  "summary": {
+    "total_input": 16,
+    "total_groups": 6,
+    "ungrouped_count": 0
+  }
+}

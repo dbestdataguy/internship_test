@@ -1,259 +1,134 @@
-# TaxStreem Internship — AI / ML Track
+# TaxStreem Internship — AI / ML Track - Intelligent Transaction Grouper
+
+## Approach
+
+I chose the **Hybrid approach (Option C)** — combining semantic embeddings with LLM-powered label generation.
+
+**Why hybrid over pure LLM or pure embeddings:**
+A pure LLM approach sends all transactions directly to the model for grouping and labeling in one shot. This works for small inputs but becomes expensive and less reliable at scale. The model handles both the mathematical grouping and the semantic labeling, making errors harder to isolate.
+
+A pure embedding approach clusters transactions by vector similarity efficiently and cheaply, but cannot generate meaningful labels or explanations. It only sees numbers, not meaning.
+
+The hybrid pipeline separates these concerns deliberately:
+- **sentence-transformers** handles mathematical similarity locally (free, deterministic, no API cost)
+- **Groq LLaMA 3.3** handles semantic labeling and explanation (small, targeted API call per run)
+
+Each tool does only what it is best at. This is more reliable, more cost-efficient at scale, and easier to debug than either approach alone.
 
 ---
 
-## Overview
-
-Welcome to the TaxStreem AI/ML Internship Assessment.
-
-This is not a Kaggle competition. We are not optimising for accuracy scores. We are evaluating **how you reason through an ambiguous problem, make deliberate modeling decisions, and communicate your thinking** — exactly what you'll do as part of our AI team.
-
-> ⏱️ **Time Budget:** 3–4 hours maximum. A clear, reasoned partial solution beats a chaotic complete one.
-
----
-
-## Background
-
-TaxStreem processes thousands of financial transactions daily. A recurring challenge is **semantic transaction grouping**: given a raw list of transaction descriptions from different sources, automatically cluster and label them into meaningful categories.
-
-This matters because:
-- Users expect clean, readable transaction histories
-- Downstream tax logic depends on accurate categorisation
-- Raw bank descriptions are noisy, inconsistent, and abbreviated
+## Prompt Design
+The labeling prompt is structured in five sections:
+1. **Role and context** — establishes the Nigerian fintech context so the model recognises local companies like Paystack, Flutterwave, MTN, and Airtel correctly
+2. **Numbered instructions** — four explicit tasks with no ambiguity
+3. **Rules** — pre-handles known edge cases: the Uber vs Uber Eats distinction, confidence level definitions, singleton group handling
+4. **Strict JSON instruction** — prevents the model from wrapping output in markdown code fences which would break parsing
+5. **Few-shot example** — provides a concrete input/output example to anchor the expected format.
 
 ---
 
-## The Task: Intelligent Transaction Grouper
+## Assumptions
+- Transaction descriptions are short strings (under 20 words)
+- The input is a flat JSON array of strings
+- All transactions are in a Nigerian fintech context
 
-You will build a system that takes a raw list of transaction descriptions and groups them into labelled semantic clusters — then explains the grouping.
+---
+## Output
+Outputs are saved as output.json in the data folder (data/output.json).
+
+## Trade-offs
+
+**What my solution gets wrong:**
+
+1. **KMeans requires a fixed k** — I estimate k as the square root of half the input size. For 16 transactions this produces k=3, which is too low and causes unrelated items to be forced into the same cluster. In the sample output, MTN/Airtel and Shoprite ended up in the same cluster, and Uber Eats merged with Uber rides. This project will still require more tuning.
+
+2. **Paystack and Flutterwave in separate groups** — these are both Nigerian payment processors and should be one group. The embedding model placed them far enough apart that KMeans separated them. Domain-specific fine-tuning of the embedding model would fix this.
+
+3. **LLM labels are non-deterministic** — I tested and confirmed that running the same input twice may produce slightly different labels, explanations and confidence level. The embedding clustering is deterministic (random_state=42) but the LLM labeling is not. 
+
+4. **Deliberate restraint on parameter tuning** — The expected output shows 7 groups with specific labels. During development I experimented with different values of k and prompt variations. Some produced worse results, some came closer to the expected 7 groups. I deliberately stopped short of tuning specifically toward the expected output because doing so would constitute data leakage — I would be optimising for a known answer rather than building a system that generalises to unseen transaction data. The parameters I settled on represent my best judgment for a general-purpose grouping system, not a system fitted to this specific sample.
+
+**What would break it:**
+- Transactions in languages other than English
+- Very large inputs (1000+ transactions) would hit free API rate limits. 
+- Highly ambiguous or irregular descriptions with no recognisable merchant names or names that LLM or transformers can easily find.
 
 ---
 
-## Input
+## Evaluation
 
-```json
-[
-  "Uber trip 1200",
-  "UBER EATS ORDER 3400",
-  "uber ride lagos 1100",
-  "Netflix subscription 4500",
-  "NETFLIX.COM 4500",
-  "Amazon Web Services invoice",
-  "AWS charges July",
-  "Bolt ride 900",
-  "BOLT TECHNOLOGIES 1050",
-  "Paystack transfer fee",
-  "Flutterwave payout 15000",
-  "MTN airtime recharge 500",
-  "MTN data bundle 1200",
-  "Airtel subscription 800",
-  "Shoprite purchase 3200",
-  "Shoprite Lagos 2800"
-]
+**How I would measure grouping quality without ground truth labels:**
+1. **Intra-cluster cosine similarity** — measure the average cosine similarity between all items within each cluster. High similarity = tight, meaningful cluster. This is computable without any labels.
+
+2. **Silhouette score** — scikit-learn provides this out of the box. It measures how similar each item is to its own cluster versus other clusters. Score ranges from -1 to 1, higher is better.
+
+3. **Human spot-check rate** — sample 10% of grouped transactions and have a human verify correctness. Track this rate over time as a quality signal.
+
+4. **Singleton rate** — a high percentage of singleton groups suggests k is too high or the embedding model is not capturing semantic similarity well enough.
+
+---
+
+## How to Run
+
+**1. Clone the repository**
+git clone https://github.com/YOUR_USERNAME/internship_test.git
+cd internship_test/ai_ml_track
+
+**2. Install dependencies**
+pip install -r requirements.txt
+
+**3. Set up environment variables**
+cp .env.example .env
+Edit `.env` and add your Groq API key:
+GROQ_API_KEY=your_groq_api_key_here
+Get a free Groq API key at https://console.groq.com
+
+**4. Run the pipeline**
+python src/main.py
+
+**5. Run the tests**
+python -m pytest tests/ -v
+
+Output is printed to the terminal and saved to `data/output.json`.
+
+## Project Structure
 ```
-
----
-
-## Expected Output
-
-```json
-{
-  "groups": [
-    {
-      "label": "Ride-hailing",
-      "items": ["Uber trip 1200", "uber ride lagos 1100", "Bolt ride 900", "BOLT TECHNOLOGIES 1050"],
-      "confidence": "high",
-      "explanation": "Grouped by semantic similarity to transportation/ride services..."
-    },
-    {
-      "label": "Food Delivery",
-      "items": ["UBER EATS ORDER 3400"],
-      "confidence": "medium",
-      "explanation": "Uber Eats is distinct from Uber rides — food delivery, not transport..."
-    },
-    {
-      "label": "Streaming",
-      "items": ["Netflix subscription 4500", "NETFLIX.COM 4500"],
-      "confidence": "high",
-      "explanation": "Exact semantic match — same service, different raw string formats..."
-    },
-    {
-      "label": "Cloud Infrastructure",
-      "items": ["Amazon Web Services invoice", "AWS charges July"],
-      "confidence": "high",
-      "explanation": "AWS is the known acronym for Amazon Web Services..."
-    },
-    {
-      "label": "Payment Processing",
-      "items": ["Paystack transfer fee", "Flutterwave payout 15000"],
-      "confidence": "medium",
-      "explanation": "Both are Nigerian fintech payment processors..."
-    },
-    {
-      "label": "Telecoms",
-      "items": ["MTN airtime recharge 500", "MTN data bundle 1200", "Airtel subscription 800"],
-      "confidence": "high",
-      "explanation": "MTN and Airtel are mobile network operators..."
-    },
-    {
-      "label": "Retail / Grocery",
-      "items": ["Shoprite purchase 3200", "Shoprite Lagos 2800"],
-      "confidence": "high",
-      "explanation": "Same retail chain, different transaction descriptions..."
-    }
-  ],
-  "ungrouped": [],
-  "summary": {
-    "total_input": 16,
-    "total_groups": 7,
-    "ungrouped_count": 0
-  }
-}
-```
-
----
-
-## Implementation Paths (Choose ONE or combine)
-
-### Option A — LLM-Powered Approach (Recommended)
-Use an LLM (OpenAI GPT, Anthropic Claude, Gemini, or open-source via Ollama) via API or SDK.
-
-- Design a prompt that performs semantic grouping
-- Parse and structure the output
-- Handle edge cases in the LLM response (hallucinations, malformed JSON)
-
-> **Focus:** Prompt engineering quality, output reliability, cost-awareness
-
-### Option B — Classical NLP / Embedding Approach
-Use sentence embeddings + clustering (e.g. `sentence-transformers` + HDBSCAN or KMeans).
-
-- Embed descriptions using a pre-trained model
-- Cluster using a suitable algorithm
-- Label clusters using most representative member or LLM post-processing
-
-> **Focus:** Clustering design, label generation, threshold decisions
-
-### Option C — Hybrid (Strongest signal)
-Use embeddings for initial clustering + LLM for label generation and explanation.
-
-> **Focus:** System design, tool orchestration, quality vs cost trade-offs
-
----
-
-## Requirements (Must Have)
-
-- [ ] Accepts the input list and produces structured grouped output
-- [ ] Each group must have: label, items, confidence, explanation
-- [ ] A `summary` section with counts
-- [ ] Python (preferred) or TypeScript implementation
-- [ ] Edge case handling: duplicate descriptions, single-item groups, ambiguous items
-- [ ] README documenting your approach
-
-## Bonus (Top 10% separators)
-
-- [ ] Cost estimation — how much does your solution cost per 1,000 transactions?
-- [ ] Evaluation metric — how would you measure grouping quality without ground truth labels?
-- [ ] Streaming output for large inputs
-- [ ] Configurable confidence threshold
-- [ ] Unit tests for the parsing/post-processing logic
-
----
-
-## Technical Constraints
-
-- You may use any LLM API (bring your own key — note this in your README)
-- You may use HuggingFace models, Ollama local models, or any open-source embedding model
-- Python 3.10+
-- No use of ai libs e.g langchain. we want your raw implementation
-- CPU-only solution
-
----
-
-## Project Structure (Expected)
-
-```
-ai_ml_task/
+ai_ml_track/
 ├── src/
-│   ├── grouper.py            # Core grouping logic
-│   ├── prompt_templates.py   # LLM prompts (if applicable)
-│   ├── embeddings.py         # Embedding logic (if applicable)
-│   └── main.py               # Entry point
+│   ├── embeddings.py        # Loads sentence-transformer model, 
+│                            # converts descriptions to vectors
+│   ├── grouper.py           # Core pipeline: clustering + LLM labeling
+│   ├── prompt_templates.py  # Prompt engineering for LLM labeling
+│   └── main.py              # Entry point, input loading, output saving
 ├── tests/
-│   └── test_grouper.py
+│   └── test_grouper.py      # Unit tests for parsing and post-processing
 ├── data/
-│   └── sample_input.json     # The input list above
+│   ├── sample_input.json    # Input transactions
+│   └── output.json          # Generated output (created on run)
 ├── requirements.txt
 ├── .env.example
 └── README.md
 ```
+---
+
+## Cost Estimate
+
+**Per 1,000 transactions:**
+- Embedding (sentence-transformers): **$0.00** — runs locally on CPU
+- Groq LLaMA 3.3 70B: approximately **$0.06** per 1,000 transactions (based on ~600 input tokens per cluster summary × estimated 15 clusters per 1,000 transactions × $0.59/million tokens)
+
+**Total: approximately $0.06 per 1,000 transactions**
+This is significantly cheaper than a pure LLM approach which would send all raw transactions directly, costing roughly $0.40-0.80 per 1,000 transactions depending on description length.
 
 ---
 
-## What NOT To Do
+## Dependencies
 
-- Do not just dump raw LLM output without parsing and validating it
-- Do not hardcode the groupings — your solution must generalise to new inputs
-- Do not optimise for the sample data specifically — think generalisation
-- Do not skip the `explanation` field — this is intentional
-- Do not submit a Jupyter notebook as your only deliverable — include a runnable script
+| Library | Purpose |
+|---|---|
+| sentence-transformers | Local CPU embedding model |
+| scikit-learn | KMeans clustering, silhouette scoring |
+| groq | LLM API client for label generation |
+| python-dotenv | Environment variable management |
 
----
-
-## Evaluation Focus Areas
-
-This track is evaluated differently from backend/frontend. We care most about:
-
-**How do you think?**
-- Do you understand the difference between semantic similarity and syntactic similarity?
-- Do you make deliberate choices about clustering thresholds and confidence?
-- Do you acknowledge what your approach gets wrong?
-
-**How do you communicate?**
-- Can you explain your reasoning clearly, in plain language?
-- Do you surface trade-offs instead of pretending they don't exist?
-
----
-
-## Submission
-
-- GitHub repo (preferred) OR zip archive
-- Must run with: `pip install -r requirements.txt && python src/main.py`
-- Deadline: **72 hours from receipt**
-- Include a `README.md` (see below)
-
----
-
-## Required README Contents
-
-1. **Approach** — which implementation path did you choose and why?
-2. **Prompt Design** (if LLM) — what's your prompting strategy? What did you try that didn't work?
-3. **Assumptions** — what did you assume about the problem?
-4. **Trade-offs** — what does your solution get wrong? What would break it?
-5. **Evaluation** — how would you measure whether it's working well?
-6. **Cost estimate** — rough cost per 1,000 transactions (even ballpark)
-7. **How to run** — exact commands, including env var setup
-
----
-
-## Evaluation Rubric
-
-| Area                                          | Weight |
-|-----------------------------------------------|--------|
-| Problem reasoning & approach quality          | 30%    |
-| Output correctness & structure                | 30%    |
-| Communication (README + explanations)         | 20%    |
-| Code quality & reliability                    | 20%    |
-
----
-
-## A Note on AI Tool Usage
-
-You may use AI tools (Copilot, ChatGPT, etc.) during the task. We don't care. What we will test in the review call is whether **you can explain every line of your submission**. If you can't, it shows and it ends the conversation.
-
----
-
-## Questions?
-
-If the problem is unclear or you want to propose an alternate interpretation — ask. Clarity is a professional skill.
-
-**— TaxStreem Data & AI Team**
+No LangChain or high-level AI frameworks were used. All LLM interactions are implemented directly against the Groq API to maintain full visibility and control over every step of the pipeline.

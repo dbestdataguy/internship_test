@@ -1,0 +1,4 @@
+sentence-transformers
+scikit-learn
+google-generativeai
+python-dotenvS
