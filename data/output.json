@@ -1,0 +1,54 @@
+{
+  "groups": [
+    {
+      "label": "Transport and Food Delivery",
+      "items": [
+        "Uber trip 1200",
+        "uber ride lagos 1100",
+        "Bolt ride 900",
+        "BOLT TECHNOLOGIES 1050",
+        "UBER EATS ORDER 3400"
+      ],
+      "confidence": "medium",
+      "explanation": "This group contains ride-hailing services (Uber, Bolt) and food delivery (Uber Eats), which are related but distinct services. The items mostly belong together due to the semantic meaning of transport and food delivery, but the category could be more specific."
+    },
+    {
+      "label": "Subscriptions and Purchases",
+      "items": [
+        "Netflix subscription 4500",
+        "NETFLIX.COM 4500",
+        "Shoprite purchase 3200",
+        "Shoprite Lagos 2800",
+        "Airtel subscription 800",
+        "MTN airtime recharge 500",
+        "MTN data bundle 1200"
+      ],
+      "confidence": "low",
+      "explanation": "This group contains various subscription and purchase transactions, including streaming services (Netflix), retail purchases (Shoprite), and telecommunications services (Airtel, MTN). The items do not necessarily belong together due to the broad range of services, but they share a common theme of being consumer expenses."
+    },
+    {
+      "label": "Cloud Services and Fees",
+      "items": [
+        "Amazon Web Services invoice",
+        "AWS charges July",
+        "Paystack transfer fee"
+      ],
+      "confidence": "high",
+      "explanation": "This group contains transactions related to cloud services (Amazon Web Services) and payment processing fees (Paystack transfer fee). The items clearly belong together due to their semantic meaning, which is related to business expenses and online services."
+    },
+    {
+      "label": "Payouts",
+      "items": [
+        "Flutterwave payout 15000"
+      ],
+      "confidence": "high",
+      "explanation": "This is a singleton group containing only one item, which is a payout transaction from Flutterwave. It does not fit into the other categories and appears to be a distinct type of transaction."
+    }
+  ],
+  "ungrouped": [],
+  "summary": {
+    "total_input": 16,
+    "total_groups": 4,
+    "ungrouped_count": 0
+  }
+}
